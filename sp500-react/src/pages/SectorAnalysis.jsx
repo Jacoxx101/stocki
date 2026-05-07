@@ -24,6 +24,12 @@ function getReturnColor(val) {
   return val >= 0 ? 'text-green-600' : 'text-red-600';
 }
 
+function getCompanyReturn(company, key) {
+  if (key === '1_year') return company.historical_data?.one_year_return ?? company.returns?.['1_year'];
+  if (key === 'ytd') return company.historical_data?.ytd_return ?? company.returns?.ytd;
+  return company.returns?.[key];
+}
+
 const RETURN_PERIODS = [
   { key: '1_week', label: '1 Week', shortLabel: '1W' },
   { key: '1_month', label: '1 Month', shortLabel: '1M' },
@@ -48,8 +54,8 @@ export default function SectorAnalysis() {
     const mktCaps = sectorCompanies.map(c => c.market_cap).filter(Boolean);
     const peRatios = sectorCompanies.map(c => c.financials?.pe_ratio).filter(v => v && !isNaN(v));
     const margins = sectorCompanies.map(c => c.financials?.profit_margin).filter(v => v && !isNaN(v));
-    const ytdReturns = sectorCompanies.map(c => c.historical_data?.ytd_return).filter(v => v && !isNaN(v));
-    const oneYearReturns = sectorCompanies.map(c => c.historical_data?.one_year_return).filter(v => v && !isNaN(v));
+    const ytdReturns = sectorCompanies.map(c => getCompanyReturn(c, 'ytd')).filter(v => v !== null && v !== undefined && !isNaN(v));
+    const oneYearReturns = sectorCompanies.map(c => getCompanyReturn(c, '1_year')).filter(v => v !== null && v !== undefined && !isNaN(v));
     const revenues = sectorCompanies.map(c => c.financials?.revenue).filter(v => v && !isNaN(v));
     const roes = sectorCompanies.map(c => c.financials?.return_on_equity).filter(v => v && !isNaN(v));
 
@@ -71,8 +77,9 @@ export default function SectorAnalysis() {
   // Top gainers and losers for selected period
   const sortedByReturn = useMemo(() => {
     return [...sectorCompanies]
-      .filter(c => c.returns?.[selectedPeriod] !== null && c.returns?.[selectedPeriod] !== undefined)
-      .sort((a, b) => b.returns[selectedPeriod] - a.returns[selectedPeriod]);
+      .map(c => ({ ...c, selectedReturn: getCompanyReturn(c, selectedPeriod) }))
+      .filter(c => c.selectedReturn !== null && c.selectedReturn !== undefined && !isNaN(c.selectedReturn))
+      .sort((a, b) => b.selectedReturn - a.selectedReturn);
   }, [sectorCompanies, selectedPeriod]);
 
   const topGainers = sortedByReturn.slice(0, 10);
@@ -85,11 +92,11 @@ export default function SectorAnalysis() {
 
   // P/E vs Return scatter
   const scatterData = sectorCompanies
-    .filter(c => c.financials?.pe_ratio && c.returns?.[selectedPeriod] !== undefined && c.returns?.[selectedPeriod] !== null)
+    .filter(c => c.financials?.pe_ratio && getCompanyReturn(c, selectedPeriod) !== undefined && getCompanyReturn(c, selectedPeriod) !== null)
     .map(c => ({
       name: c.symbol,
       pe: c.financials.pe_ratio,
-      return: c.returns[selectedPeriod] * 100,
+      return: getCompanyReturn(c, selectedPeriod) * 100,
       marketCap: c.market_cap / 1e9,
       subIndustry: c.sub_industry,
     }));
@@ -109,8 +116,8 @@ export default function SectorAnalysis() {
   const subIndustryPerformance = Object.entries(subIndustryData)
     .map(([name, info]) => {
       const returns = info.companies
-        .map(c => c.returns?.[selectedPeriod])
-        .filter(v => v !== null && v !== undefined);
+        .map(c => getCompanyReturn(c, selectedPeriod))
+        .filter(v => v !== null && v !== undefined && !isNaN(v));
       const avgReturn = returns.length ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
       return { name, avgReturn, count: info.count, marketCap: info.marketCap };
     })
@@ -209,7 +216,7 @@ export default function SectorAnalysis() {
                     </td>
                     <td className="py-2 px-3">{c.name}</td>
                     <td className="py-2 px-3 text-right font-bold text-green-600">
-                      +{formatPct(c.returns[selectedPeriod])}
+                      +{formatPct(c.selectedReturn)}
                     </td>
                     <td className="py-2 px-3 text-right text-gray-600">{formatB(c.market_cap)}</td>
                   </tr>
@@ -247,7 +254,7 @@ export default function SectorAnalysis() {
                     </td>
                     <td className="py-2 px-3">{c.name}</td>
                     <td className="py-2 px-3 text-right font-bold text-red-600">
-                      {formatPct(c.returns[selectedPeriod])}
+                      {formatPct(c.selectedReturn)}
                     </td>
                     <td className="py-2 px-3 text-right text-gray-600">{formatB(c.market_cap)}</td>
                   </tr>
@@ -367,17 +374,17 @@ export default function SectorAnalysis() {
                     <td className="py-3 px-4 text-gray-500">{c.sub_industry}</td>
                     <td className="py-3 px-4 text-right font-medium">{formatB(c.market_cap)}</td>
                     <td className="py-3 px-4 text-right">{c.financials?.pe_ratio ? c.financials.pe_ratio.toFixed(1) : 'N/A'}</td>
-                    <td className={`py-3 px-4 text-right font-medium ${getReturnColor(c.returns?.['1_week'])}`}>
-                      {formatPct(c.returns?.['1_week'])}
+                    <td className={`py-3 px-4 text-right font-medium ${getReturnColor(getCompanyReturn(c, '1_week'))}`}>
+                      {formatPct(getCompanyReturn(c, '1_week'))}
                     </td>
-                    <td className={`py-3 px-4 text-right font-medium ${getReturnColor(c.returns?.['1_month'])}`}>
-                      {formatPct(c.returns?.['1_month'])}
+                    <td className={`py-3 px-4 text-right font-medium ${getReturnColor(getCompanyReturn(c, '1_month'))}`}>
+                      {formatPct(getCompanyReturn(c, '1_month'))}
                     </td>
-                    <td className={`py-3 px-4 text-right font-medium ${getReturnColor(c.historical_data?.ytd_return)}`}>
-                      {formatPct(c.historical_data?.ytd_return)}
+                    <td className={`py-3 px-4 text-right font-medium ${getReturnColor(getCompanyReturn(c, 'ytd'))}`}>
+                      {formatPct(getCompanyReturn(c, 'ytd'))}
                     </td>
-                    <td className={`py-3 px-4 text-right font-medium ${getReturnColor(c.historical_data?.one_year_return)}`}>
-                      {formatPct(c.historical_data?.one_year_return)}
+                    <td className={`py-3 px-4 text-right font-medium ${getReturnColor(getCompanyReturn(c, '1_year'))}`}>
+                      {formatPct(getCompanyReturn(c, '1_year'))}
                     </td>
                   </tr>
                 ))}
