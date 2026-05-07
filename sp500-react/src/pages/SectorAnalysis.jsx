@@ -85,10 +85,17 @@ export default function SectorAnalysis() {
   const topGainers = sortedByReturn.slice(0, 10);
   const topLosers = sortedByReturn.slice(-10).reverse();
 
-  // Market cap distribution
-  const mcData = sectorCompanies
-    .map(c => ({ name: c.name, symbol: c.symbol, marketCap: c.market_cap / 1e9 }))
-    .sort((a, b) => b.marketCap - a.marketCap);
+  // Profit margin vs revenue growth
+  const marginGrowthData = sectorCompanies
+    .filter(c => c.financials?.profit_margin !== undefined && c.growth_data?.revenue_growth !== undefined)
+    .map(c => ({
+      name: c.symbol,
+      company: c.name,
+      margin: c.financials.profit_margin * 100,
+      growth: c.growth_data.revenue_growth * 100,
+      marketCap: c.market_cap / 1e9,
+      subIndustry: c.sub_industry,
+    }));
 
   // P/E vs Return scatter
   const scatterData = sectorCompanies
@@ -267,17 +274,25 @@ export default function SectorAnalysis() {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Market Cap Distribution */}
+        {/* Profit Margin vs Revenue Growth */}
         <div className="bg-white rounded-xl shadow-sm border p-6">
-          <h3 className="text-lg font-semibold mb-4">Market Cap Distribution (Top 20)</h3>
+          <h3 className="text-lg font-semibold mb-4">Profit Margin vs Revenue Growth</h3>
           <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={mcData.slice(0, 20)} layout="vertical">
+            <ScatterChart>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" tickFormatter={(v) => `$${v.toFixed(0)}B`} />
-              <YAxis type="category" dataKey="name" width={150} tick={{fontSize: 10}} />
-              <Tooltip formatter={(v) => [`$${v.toFixed(1)}B`, 'Market Cap']} />
-              <Bar dataKey="marketCap" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-            </BarChart>
+              <XAxis type="number" dataKey="growth" name="Revenue Growth" unit="%" tickFormatter={(v) => `${v.toFixed(0)}%`} />
+              <YAxis type="number" dataKey="margin" name="Profit Margin" unit="%" tickFormatter={(v) => `${v.toFixed(0)}%`} />
+              <Tooltip
+                cursor={{ strokeDasharray: '3 3' }}
+                formatter={(value, name, props) => {
+                  if (name === 'growth') return [`${Number(value).toFixed(1)}%`, 'Revenue Growth'];
+                  if (name === 'margin') return [`${Number(value).toFixed(1)}%`, 'Profit Margin'];
+                  return [value, name];
+                }}
+                labelFormatter={(_, payload) => payload?.[0]?.payload ? `${payload[0].payload.company} (${payload[0].payload.name})` : ''}
+              />
+              <Scatter data={marginGrowthData} fill="#3b82f6" />
+            </ScatterChart>
           </ResponsiveContainer>
         </div>
 
