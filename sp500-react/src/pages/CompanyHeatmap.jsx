@@ -24,31 +24,30 @@ function formatValue(val, metric) {
   return val > 0 ? `+${pct}%` : `${pct}%`;
 }
 
-function metricColor(value) {
-  if (value === null || value === undefined || Number.isNaN(value)) return 'bg-amber-400 text-white';
+function metricStyle(percentile) {
+  if (percentile === null || percentile === undefined || Number.isNaN(percentile)) {
+    return { backgroundColor: '#d1d5db', color: '#111827' };
+  }
 
-  // value is normalized to [-1, 1], with 0 = sector/company average
-  const abs = Math.min(1, Math.abs(value));
-  if (value >= 0.7) return 'bg-emerald-700 text-white';
-  if (value >= 0.35) return `bg-emerald-500 text-white`;
-  if (value >= 0.08) return `bg-emerald-300 text-gray-900`;
-  if (value > -0.08) return 'bg-yellow-400 text-gray-900';
-  if (value > -0.35) return `bg-rose-300 text-gray-900`;
-  if (value > -0.7) return `bg-rose-500 text-white`;
-  return 'bg-red-700 text-white';
+  // percentile is 0..1 — map directly to hue: red(0) → yellow(55) → green(120)
+  const hue = percentile * 120;
+  const saturation = 78;
+  const lightness = 48;
+
+  return {
+    backgroundColor: `hsl(${hue.toFixed(0)}, ${saturation}%, ${lightness}%)`,
+    color: '#fff',
+  };
 }
 
-function relativeToAverage(values, value, invert = false) {
+function percentileRank(values, value, invert = false) {
   const clean = values.filter(v => v !== null && v !== undefined && !Number.isNaN(v));
   if (!clean.length || value === null || value === undefined || Number.isNaN(value)) return null;
-  const min = Math.min(...clean);
-  const max = Math.max(...clean);
-  if (max === min) return 0.5;
-  const avg = clean.reduce((a, b) => a + b, 0) / clean.length;
-  const spread = Math.max(Math.abs(max - avg), Math.abs(min - avg)) || 1;
-  const norm = (value - avg) / spread;
-  const adjusted = invert ? -norm : norm;
-  return Math.max(-1, Math.min(1, adjusted));
+
+  const below = clean.filter(v => v < value).length;
+  const tied = clean.filter(v => v === value).length;
+  const rank = (below + 0.5 * tied) / clean.length;               // smoothed percentile 0..1
+  return invert ? 1 - rank : rank;
 }
 
 export default function CompanyHeatmap() {
@@ -238,15 +237,15 @@ export default function CompanyHeatmap() {
                   <td className="py-3 px-4 text-right font-medium">${(company.market_cap / 1e9).toFixed(1)}B</td>
                   {METRICS.map(metric => {
                     const raw = company.metricValues?.[metric.key];
-                    const normalized = relativeToAverage(
+                    const percentile = percentileRank(
                       allMetricValues[metric.key],
                       raw,
                       metric.key === 'pe_ratio' || metric.key === 'volatility'
                     );
-                    const tone = metricColor(normalized);
+                    const tone = metricStyle(percentile);
                     return (
                       <td key={metric.key} className="py-2 px-3 text-center">
-                        <div className={`rounded-md py-2 px-3 font-medium ${tone}`}>
+                        <div className="rounded-md py-2 px-3 font-medium" style={tone}>
                           {formatValue(raw, metric.key)}
                         </div>
                       </td>
