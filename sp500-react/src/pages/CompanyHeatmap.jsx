@@ -20,18 +20,22 @@ function formatPct(val) {
 function formatValue(val, metric) {
   if (val === null || val === undefined || Number.isNaN(val)) return 'N/A';
   if (metric === 'pe_ratio' || metric === 'volatility') return val.toFixed(1);
-  return `${(val * 100).toFixed(0)}%`;
+  const pct = (val * 100).toFixed(0);
+  return val > 0 ? `+${pct}%` : `${pct}%`;
 }
 
-function metricColor(value, metric) {
+function metricColor(value) {
   if (value === null || value === undefined || Number.isNaN(value)) return 'bg-amber-400 text-white';
 
-  // value is a normalized distance from the average in the range [-1, 1]
-  if (value >= 0.5) return 'bg-green-600 text-white';
-  if (value >= 0.15) return 'bg-green-400 text-white';
-  if (value > -0.15) return 'bg-yellow-400 text-gray-900';
-  if (value > -0.5) return 'bg-orange-500 text-white';
-  return 'bg-red-500 text-white';
+  // value is normalized to [-1, 1], with 0 = sector/company average
+  const abs = Math.min(1, Math.abs(value));
+  if (value >= 0.7) return 'bg-emerald-700 text-white';
+  if (value >= 0.35) return `bg-emerald-500 text-white`;
+  if (value >= 0.08) return `bg-emerald-300 text-gray-900`;
+  if (value > -0.08) return 'bg-yellow-400 text-gray-900';
+  if (value > -0.35) return `bg-rose-300 text-gray-900`;
+  if (value > -0.7) return `bg-rose-500 text-white`;
+  return 'bg-red-700 text-white';
 }
 
 function relativeToAverage(values, value, invert = false) {
@@ -136,6 +140,16 @@ export default function CompanyHeatmap() {
     return ranges;
   }, [visibleCompanies]);
 
+  const allMetricValues = useMemo(() => {
+    const map = {};
+    METRICS.forEach(({ key }) => {
+      map[key] = visibleCompanies
+        .map(c => c.metricValues?.[key])
+        .filter(v => v !== null && v !== undefined && !Number.isNaN(v));
+    });
+    return map;
+  }, [visibleCompanies]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -224,15 +238,12 @@ export default function CompanyHeatmap() {
                   <td className="py-3 px-4 text-right font-medium">${(company.market_cap / 1e9).toFixed(1)}B</td>
                   {METRICS.map(metric => {
                     const raw = company.metricValues?.[metric.key];
-                    const base = metricRanges[metric.key];
-                    const normalized = base?.min === null || base?.max === null
-                      ? null
-                      : relativeToAverage(
-                          visibleCompanies.map(c => c.metricValues?.[metric.key]),
-                          raw,
-                          metric.key === 'pe_ratio' || metric.key === 'volatility'
-                        );
-                    const tone = metricColor(normalized, metric.key);
+                    const normalized = relativeToAverage(
+                      allMetricValues[metric.key],
+                      raw,
+                      metric.key === 'pe_ratio' || metric.key === 'volatility'
+                    );
+                    const tone = metricColor(normalized);
                     return (
                       <td key={metric.key} className="py-2 px-3 text-center">
                         <div className={`rounded-md py-2 px-3 font-medium ${tone}`}>
