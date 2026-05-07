@@ -1,19 +1,21 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { DataProvider } from './hooks/useData';
 import ErrorBoundary from './components/ErrorBoundary';
-import { LayoutDashboard, Search, Building2, BarChart3, Scale, Flame } from 'lucide-react';
+import { LayoutDashboard, Search, Building2, BarChart3, Scale, Flame, Layers3 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import CompanyList from './pages/CompanyList';
 import CompanyDetail from './pages/CompanyDetail';
 import SectorAnalysis from './pages/SectorAnalysis';
 import ComparisonTool from './pages/ComparisonTool';
 import Heatmap from './pages/Heatmap';
+import CompanyHeatmap from './pages/CompanyHeatmap';
 
 function Navbar() {
   const location = useLocation();
   const links = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/heatmap', label: 'Heatmap', icon: Flame },
+    { path: '/company-heatmap', label: 'Cmp Heatmap', icon: Layers3 },
     { path: '/companies', label: 'Companies', icon: Search },
     { path: '/sectors', label: 'Sectors', icon: Building2 },
     { path: '/compare', label: 'Compare', icon: Scale },
@@ -63,6 +65,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/heatmap" element={<Heatmap />} />
+                <Route path="/company-heatmap" element={<CompanyHeatmap />} />
                 <Route path="/companies" element={<CompanyList />} />
                 <Route path="/company/:symbol" element={<CompanyDetail />} />
                 <Route path="/sectors" element={<SectorAnalysis />} />
