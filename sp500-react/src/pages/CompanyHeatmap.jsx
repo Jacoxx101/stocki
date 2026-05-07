@@ -26,23 +26,25 @@ function formatValue(val, metric) {
 function metricColor(value, metric) {
   if (value === null || value === undefined || Number.isNaN(value)) return 'bg-amber-400 text-white';
 
-  const invert = metric === 'pe_ratio' || metric === 'volatility';
-  const v = invert ? 1 - value : value;
-
-  if (v >= 0.75) return 'bg-green-500 text-white';
-  if (v >= 0.5) return 'bg-yellow-400 text-gray-900';
-  if (v >= 0.25) return 'bg-orange-500 text-white';
+  // value is a normalized distance from the average in the range [-1, 1]
+  if (value >= 0.5) return 'bg-green-600 text-white';
+  if (value >= 0.15) return 'bg-green-400 text-white';
+  if (value > -0.15) return 'bg-yellow-400 text-gray-900';
+  if (value > -0.5) return 'bg-orange-500 text-white';
   return 'bg-red-500 text-white';
 }
 
-function percentile(values, value, invert = false) {
+function relativeToAverage(values, value, invert = false) {
   const clean = values.filter(v => v !== null && v !== undefined && !Number.isNaN(v));
   if (!clean.length || value === null || value === undefined || Number.isNaN(value)) return null;
   const min = Math.min(...clean);
   const max = Math.max(...clean);
   if (max === min) return 0.5;
-  const norm = (value - min) / (max - min);
-  return invert ? 1 - norm : norm;
+  const avg = clean.reduce((a, b) => a + b, 0) / clean.length;
+  const spread = Math.max(Math.abs(max - avg), Math.abs(min - avg)) || 1;
+  const norm = (value - avg) / spread;
+  const adjusted = invert ? -norm : norm;
+  return Math.max(-1, Math.min(1, adjusted));
 }
 
 export default function CompanyHeatmap() {
@@ -225,7 +227,11 @@ export default function CompanyHeatmap() {
                     const base = metricRanges[metric.key];
                     const normalized = base?.min === null || base?.max === null
                       ? null
-                      : percentile([base.min, base.max], raw, metric.key === 'pe_ratio' || metric.key === 'volatility');
+                      : relativeToAverage(
+                          visibleCompanies.map(c => c.metricValues?.[metric.key]),
+                          raw,
+                          metric.key === 'pe_ratio' || metric.key === 'volatility'
+                        );
                     const tone = metricColor(normalized, metric.key);
                     return (
                       <td key={metric.key} className="py-2 px-3 text-center">
