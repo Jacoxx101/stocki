@@ -10,6 +10,8 @@ import ComparisonTool from './pages/ComparisonTool';
 import Heatmap from './pages/Heatmap';
 import CompanyHeatmap from './pages/CompanyHeatmap';
 import StackPage from './pages/StackPage';
+import SectorBrief from './pages/SectorBrief';
+import MarketSectors from './pages/MarketSectors';
 
 function Navbar() {
   const location = useLocation();
@@ -69,9 +71,11 @@ function App() {
                 <Route path="/heatmap" element={<Heatmap />} />
                 <Route path="/company-heatmap" element={<CompanyHeatmap />} />
                 <Route path="/stacks" element={<StackPage />} />
+                <Route path="/sectors" element={<MarketSectors />} />
+                <Route path="/sector-brief" element={<SectorBrief />} />
                 <Route path="/companies" element={<CompanyList />} />
                 <Route path="/company/:symbol" element={<CompanyDetail />} />
-                <Route path="/sectors" element={<SectorAnalysis />} />
+                <Route path="/sector-analysis" element={<SectorAnalysis />} />
                 <Route path="/compare" element={<ComparisonTool />} />
               </Routes>
             </ErrorBoundary>
